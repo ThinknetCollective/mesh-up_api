@@ -20,7 +20,7 @@ A collaborative platform where communities solve real-world problems through:
 
 ## Quick Start
 ```bash
-git clone https://github.com/yourusername/mesh-api.git
+git clone https://github.com/yourusername/mesh-up_api.git
 cd mesh-api
 npm install
 npm run setup
