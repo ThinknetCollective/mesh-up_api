@@ -16,4 +16,16 @@ export class Solution {
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  @Column({ nullable: true })
+  authorId: string;
+
+  @Column({ nullable: true })
+  rank: number;
+
+  @Column({ default: 0 })
+  score: number;
+
+  @Column({ nullable: true })
+  meshNodeId: number;
 }

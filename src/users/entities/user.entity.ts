@@ -1,4 +1,4 @@
-import { Entity, Column } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn } from 'typeorm';
 
 export class UserEmailPreferences {
   @Column({ default: true })
@@ -16,8 +16,18 @@ export class UserEmailPreferences {
 
 @Entity('users')
 export class User {
-  // ... Keep existing columns intact
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
 
   @Column(() => UserEmailPreferences)
   emailPreferences: UserEmailPreferences;
+
+  @Column({ default: 0 })
+  reputation: number;
+
+  @Column({ default: 0 })
+  pointsGainedToday: number;
+
+  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  lastPointReset: Date;
 }

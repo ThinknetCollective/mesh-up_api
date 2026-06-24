@@ -19,4 +19,7 @@ export class Problem {
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  @Column({ nullable: true })
+  authorId: string;
 }
