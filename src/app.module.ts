@@ -1,16 +1,12 @@
-import { Module, OnModuleInit } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { DataSource } from 'typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { WebsocketsModule } from './websockets/websockets.module';
-import { MeshNodesModule } from './mesh-nodes/mesh-nodes.module';
-import { EmbeddingsModule } from './embeddings/embeddings.module';
-import { SearchModule } from './search/search.module';
-import { SolutionsModule } from './solutions/solutions.module';
-import { HealthModule } from './health/health.module';
-import { AnalyticsModule } from './analytics/analytics.module';
+import { ModerationModule } from './moderation/moderation.module';
+import { Solution } from './solutions/entities/solution.entity';
+import { Report } from './moderation/entities/report.entity';
 
 @Module({
   imports: [
@@ -21,17 +17,12 @@ import { AnalyticsModule } from './analytics/analytics.module';
       username: process.env.DATABASE_USER || 'postgres',
       password: process.env.DATABASE_PASSWORD || 'postgres',
       database: process.env.DATABASE_NAME || 'mesh_api',
-      autoLoadEntities: true,
-      synchronize: true, // Should be false in production
+      entities: [Solution, Report],
+      synchronize: true, // For development; use migrations for production
     }),
     AuthModule,
     WebsocketsModule,
-    MeshNodesModule,
-    EmbeddingsModule,
-    SearchModule,
-    SolutionsModule,
-    HealthModule,
-    AnalyticsModule,
+    ModerationModule,
   ],
   controllers: [AppController],
   providers: [AppService],

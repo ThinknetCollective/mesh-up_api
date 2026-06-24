@@ -1,12 +1,15 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
 
-@Entity('solutions')
-export class Solution {
+@Entity('problems')
+export class Problem {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
   @Column()
-  content: string;
+  title: string;
+
+  @Column()
+  description: string;
 
   @Column({ default: 'active' })
   status: string; // 'active' or 'hidden'
