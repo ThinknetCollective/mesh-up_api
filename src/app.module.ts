@@ -5,6 +5,7 @@ import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { WebsocketsModule } from './websockets/websockets.module';
 import { ModerationModule } from './moderation/moderation.module';
+import { CommentsModule } from './comments/comments.module';
 import { Solution } from './solutions/entities/solution.entity';
 import { SolutionRevision } from './solutions/entities/solution-revision.entity';
 import { Problem } from './solutions/entities/problem.entity';
