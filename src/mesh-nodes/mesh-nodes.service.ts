@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { MeshNode } from './entities/mesh-node.entity';
 import { EmbeddingsService } from '../embeddings/embeddings.service';
+import { ReputationService, ReputationAction } from '../users/reputation.service';
 
 @Injectable()
 export class MeshNodesService {
@@ -10,6 +11,7 @@ export class MeshNodesService {
     @InjectRepository(MeshNode)
     private readonly meshNodeRepository: Repository<MeshNode>,
     private readonly embeddingsService: EmbeddingsService,
+    private readonly reputationService: ReputationService,
   ) {}
 
   async create(createDto: { title: string; description: string; authorId?: string }) {
@@ -39,7 +41,11 @@ export class MeshNodesService {
       embeddingVersion: this.embeddingsService.modelVersion,
     });
 
-    return this.meshNodeRepository.save(meshNode);
+    const savedNode = await this.meshNodeRepository.save(meshNode);
+    if (createDto.authorId) {
+      await this.reputationService.addPoints(createDto.authorId, ReputationAction.SUBMIT_PROBLEM);
+    }
+    return savedNode;
   }
 
   async findSimilar(text: string, limit = 5) {

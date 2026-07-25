@@ -22,4 +22,20 @@ export class SolutionsController {
   history(@Param('id', ParseIntPipe) id: number) {
     return this.solutionsService.findHistory(id);
   }
+
+  @Post(':id/vote')
+  vote(
+    @Param('id') id: string,
+    @Body() body: { voterId: string; value: number },
+  ) {
+    return this.solutionsService.vote(id, body.voterId, body.value);
+  }
+
+  @Patch(':id/rank')
+  updateRank(
+    @Param('id') id: string,
+    @Body('rank', ParseIntPipe) rank: number,
+  ) {
+    return this.solutionsService.updateRank(id, rank);
+  }
 }
