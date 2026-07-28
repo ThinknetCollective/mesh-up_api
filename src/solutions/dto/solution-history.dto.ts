@@ -1,6 +1,6 @@
 export class SolutionHistoryDto {
   id: number;
-  solutionId: number;
+  solutionId: string;
   content: string;
   editedBy: string;
   previousScore: number;

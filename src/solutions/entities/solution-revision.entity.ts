@@ -6,8 +6,8 @@ export class SolutionRevision {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
-  solutionId: number;
+  @Column('uuid')
+  solutionId: string;
 
   @ManyToOne(() => Solution)
   @JoinColumn({ name: 'solutionId' })

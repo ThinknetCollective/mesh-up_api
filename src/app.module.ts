@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, OnModuleInit } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -9,6 +9,8 @@ import { CommentsModule } from './comments/comments.module';
 import { Solution } from './solutions/entities/solution.entity';
 import { SolutionRevision } from './solutions/entities/solution-revision.entity';
 import { Problem } from './solutions/entities/problem.entity';
+import { Vote } from './solutions/entities/vote.entity';
+import { Comment } from './comments/entities/comment.entity';
 import { User } from './users/entities/user.entity';
 import { Report } from './moderation/entities/report.entity';
 import { UsersModule } from './users/users.module';
@@ -24,7 +26,7 @@ import { DataSource } from 'typeorm';
       username: process.env.DATABASE_USER || 'postgres',
       password: process.env.DATABASE_PASSWORD || 'postgres',
       database: process.env.DATABASE_NAME || 'mesh_api',
-      entities: [User, Solution, SolutionRevision, Problem, Report],
+      entities: [User, Solution, SolutionRevision, Problem, Vote, Comment, Report],
       synchronize: true, // For development; use migrations for production
     }),
     AuthModule,
@@ -32,6 +34,7 @@ import { DataSource } from 'typeorm';
     ModerationModule,
     UsersModule,
     SolutionsModule,
+    CommentsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
