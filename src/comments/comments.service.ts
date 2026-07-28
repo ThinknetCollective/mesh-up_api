@@ -9,7 +9,20 @@ import { Repository, TreeRepository } from 'typeorm';
 import { Comment } from './entities/comment.entity';
 import { Solution } from '../solutions/entities/solution.entity';
 import { CreateCommentDto } from './dto/create-comment.dto';
-import { PaginationQueryDto } from './dto/pagination-query.dto';
+import {
+  DEFAULT_PAGE_SIZE,
+  DeprecatedOffsetPaginationQueryDto,
+} from '../common/dto/cursor-pagination-query.dto';
+import { CursorPaginatedResponse } from '../common/interfaces/cursor-paginated-response.interface';
+import {
+  CursorSpec,
+  buildCursorPage,
+  buildKeysetCondition,
+  buildOrderBy,
+  cursorScope,
+  decodeCursor,
+  fetchSize,
+} from '../common/utils/cursor.util';
 
 /** Maximum nesting depth allowed for replies (0-indexed). */
 const MAX_DEPTH = 2; // root=0, reply=1, reply-of-reply=2
@@ -19,6 +32,30 @@ const RATE_LIMIT_PER_HOUR = 10;
 
 /** Length of the rate-limit sliding window in milliseconds. */
 const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
+
+/**
+ * Cursor ordering for a solution's root comments: oldest first, as the offset
+ * implementation did, with the id as tiebreaker so comments sharing a
+ * createdAt timestamp can never straddle a page boundary.
+ *
+ * The scope pins the cursor to one solution, so a cursor issued for solution A
+ * is rejected rather than silently applied to solution B's thread.
+ */
+function commentCursorSpec(solutionId: string): CursorSpec {
+  return {
+    keys: [
+      {
+        expr: 'comment.createdAt',
+        type: 'date',
+        direction: 'ASC',
+        nulls: 'LAST',
+        nonNullable: true,
+      },
+    ],
+    id: { expr: 'comment.id', type: 'string', direction: 'ASC' },
+    scope: cursorScope({ solutionId }),
+  };
+}
 
 @Injectable()
 export class CommentsService {
@@ -83,36 +120,61 @@ export class CommentsService {
   }
 
   /**
-   * Retrieve paginated top-level comments for a solution, each with their
-   * nested children (replies) eagerly loaded via the closure table.
+   * Retrieve a cursor-paginated page of top-level comments for a solution, each
+   * with their nested children (replies) eagerly loaded via the closure table.
+   *
+   * Only root comments (depth=0) are paginated; replies always travel with
+   * their root regardless of when they were posted, so a reply added between
+   * two page fetches cannot shift the pagination.
+   *
+   * The legacy `page` param on {@link DeprecatedOffsetPaginationQueryDto} is
+   * accepted but ignored — see the API changelog.
    */
   async findAll(
     solutionId: string,
-    query: PaginationQueryDto,
-  ): Promise<{ data: Comment[]; total: number; page: number; limit: number }> {
+    query: DeprecatedOffsetPaginationQueryDto,
+  ): Promise<CursorPaginatedResponse<Comment>> {
     const solution = await this.solutionRepo.findOne({ where: { id: solutionId } });
     if (!solution) {
       throw new NotFoundException(`Solution with ID ${solutionId} not found`);
     }
 
-    const page = query.page ?? 1;
-    const limit = query.limit ?? 20;
-    const skip = (page - 1) * limit;
+    const limit = query.limit ?? DEFAULT_PAGE_SIZE;
+    const spec = commentCursorSpec(solutionId);
 
-    // Fetch only root-level comments (depth=0) for pagination
-    const [rootComments, total] = await this.commentRepo.findAndCount({
-      where: { solutionId, depth: 0 },
-      order: { createdAt: 'ASC' },
-      skip,
-      take: limit,
+    const qb = this.commentRepo
+      .createQueryBuilder('comment')
+      .where('comment.solutionId = :solutionId', { solutionId })
+      .andWhere('comment.depth = 0');
+
+    if (query.cursor) {
+      const { sql, params } = buildKeysetCondition(
+        spec,
+        decodeCursor(spec, query.cursor),
+      );
+      qb.andWhere(sql, params);
+    }
+
+    buildOrderBy(spec).forEach((order, i) => {
+      const apply = i === 0 ? qb.orderBy.bind(qb) : qb.addOrderBy.bind(qb);
+      apply(order.expr, order.direction, order.nulls);
     });
 
-    // Load the full subtree for each root comment
-    const data = await Promise.all(
-      rootComments.map((root) => this.commentRepo.findDescendantsTree(root)),
+    // One extra row tells us whether a further page exists, without a COUNT.
+    const rootComments = await qb.take(fetchSize(limit)).getMany();
+
+    const page = buildCursorPage(rootComments, limit, spec, (comment) => ({
+      values: [comment.createdAt],
+      id: comment.id,
+    }));
+
+    // Load subtrees only for the rows actually being returned, never the
+    // over-fetched sentinel.
+    const items = await Promise.all(
+      page.items.map((root) => this.commentRepo.findDescendantsTree(root)),
     );
 
-    return { data, total, page, limit };
+    return { ...page, items };
   }
 
   /**
