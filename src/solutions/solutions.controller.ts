@@ -7,6 +7,8 @@ import {
   Param,
   ParseIntPipe,
   Query,
+  UseGuards,
+  Request,
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { SolutionsService } from './solutions.service';
@@ -14,11 +16,24 @@ import { CursorPaginationQueryDto } from '../common/dto/cursor-pagination-query.
 import { ApiCursorPaginated } from '../common/decorators/api-cursor-paginated.decorator';
 import { ApiAppErrorResponse } from '../common/decorators/api-error-response.decorator';
 import { Solution } from './entities/solution.entity';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
+import { BatchSolutionActionDto } from './dto/batch-solution-action.dto';
 
 @ApiTags('Solutions')
-@Controller('v1/solutions')
+@Controller(['v1/solutions', 'api/v1/solutions'])
+@UseGuards(JwtAuthGuard)
 export class SolutionsController {
   constructor(private readonly solutionsService: SolutionsService) {}
+
+  @Post('batch')
+  batchAction(
+    @Body() body: BatchSolutionActionDto,
+    @Request() req: any,
+  ) {
+    return this.solutionsService.batchAction(body, req.user);
+  }
 
   @Post()
   create(@Body() body: { meshNodeId: number; content: string; authorId: string }) {

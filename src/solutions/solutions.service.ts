@@ -1,4 +1,9 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Solution } from './entities/solution.entity';
@@ -9,6 +14,7 @@ import {
   DEFAULT_PAGE_SIZE,
 } from '../common/dto/cursor-pagination-query.dto';
 import { CursorPaginatedResponse } from '../common/interfaces/cursor-paginated-response.interface';
+import { BatchSolutionActionDto } from './dto/batch-solution-action.dto';
 import {
   CursorSpec,
   buildCursorPage,
@@ -116,6 +122,68 @@ export class SolutionsService {
       values: [solution.rank ?? null, solution.createdAt],
       id: solution.id,
     }));
+  }
+
+  async batchAction(dto: BatchSolutionActionDto, user?: any) {
+    if (dto.solutionIds.length > 50) {
+      throw new BadRequestException('Batch size cannot exceed 50 items');
+    }
+
+    const results = [] as Array<{ id: string; success: boolean; error?: string }>;
+
+    for (const solutionId of dto.solutionIds) {
+      try {
+        const solution = await this.solutionRepo.findOneBy({ id: solutionId });
+        if (!solution) {
+          results.push({ id: solutionId, success: false, error: 'Not found' });
+          continue;
+        }
+
+        const canPerform = this.canPerformAction(dto.action, solution, user);
+        if (!canPerform) {
+          results.push({ id: solutionId, success: false, error: 'Not authorized' });
+          continue;
+        }
+
+        switch (dto.action) {
+          case 'delete':
+            await this.solutionRepo.delete(solution.id);
+            break;
+          case 'bookmark':
+            solution.isBookmarked = true;
+            solution.bookmarkedBy = user?.id;
+            await this.solutionRepo.save(solution);
+            break;
+          case 'update-status':
+            solution.status = dto.status ?? 'active';
+            await this.solutionRepo.save(solution);
+            break;
+          default:
+            results.push({ id: solutionId, success: false, error: 'Unsupported action' });
+            continue;
+        }
+
+        results.push({ id: solutionId, success: true });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        results.push({ id: solutionId, success: false, error: message });
+      }
+    }
+
+    return { results };
+  }
+
+  private canPerformAction(action: BatchSolutionActionDto['action'], solution: Solution, user?: any) {
+    if (action === 'bookmark') {
+      return Boolean(user?.id);
+    }
+
+    if (action === 'delete' || action === 'update-status') {
+      const role = user?.role?.toLowerCase();
+      return role === 'moderator' || role === 'admin';
+    }
+
+    return false;
   }
 
   async update(id: string, dto: { content: string; editorId: string }) {

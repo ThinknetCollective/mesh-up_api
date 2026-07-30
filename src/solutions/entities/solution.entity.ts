@@ -28,4 +28,10 @@ export class Solution {
 
   @Column({ nullable: true })
   meshNodeId: number;
+
+  @Column({ default: false })
+  isBookmarked: boolean;
+
+  @Column({ nullable: true })
+  bookmarkedBy: string;
 }
