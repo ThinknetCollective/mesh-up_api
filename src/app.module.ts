@@ -1,4 +1,4 @@
-import { Module, OnModuleInit } from '@nestjs/common';
+import { Module, OnModuleInit, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { AppController } from './app.controller';
@@ -8,6 +8,7 @@ import { WebsocketsModule } from './websockets/websockets.module';
 import { MeshNodesModule } from './mesh-nodes/mesh-nodes.module';
 import { EmbeddingsModule } from './embeddings/embeddings.module';
 import { SearchModule } from './search/search.module';
+import { UnversionedRedirectMiddleware } from './common/middleware/unversioned-redirect.middleware';
 
 @Module({
   imports: [
@@ -30,10 +31,16 @@ import { SearchModule } from './search/search.module';
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule implements OnModuleInit {
+export class AppModule implements OnModuleInit, NestModule {
   constructor(private dataSource: DataSource) {}
 
   async onModuleInit() {
     await this.dataSource.query('CREATE EXTENSION IF NOT EXISTS vector');
+  }
+
+  configure(consumer: MiddlewareConsumer) {
+    consumer
+      .apply(UnversionedRedirectMiddleware)
+      .forRoutes('*');
   }
 }
