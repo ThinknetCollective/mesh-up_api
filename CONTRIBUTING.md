@@ -58,3 +58,13 @@ This project participates in [Drips Wave](https://www.drips.network/solutions/wa
 ## Questions?
 
 Open a [Discussion](https://github.com/ThinknetCollective/mesh-up_api/discussions) or comment on an issue — we're happy to help.
+
+
+## 🚀 API Versioning & Deprecation Policy
+
+To prevent unexpected failures for existing frontend, mobile, and on-chain consumers, `logiquest_api` strictly enforces **URI-based API versioning** (`/v1/...`, `/v2/...`).
+
+### Deprecation Rules & Guidelines
+1. **Minimum Notice Period:** Any route or field marked for deprecation must remain functional in its current version for a minimum of **90 days** before removal.
+2. **Deprecation Headers:** Deprecated endpoints must emit `Deprecation: true` and `Sunset: <UTC-Date>` HTTP headers conforming to **RFC 8594**.
+3. **No In-Place Breaking Changes:** Never modify existing fields or behavior under `/v1/` in a breaking manner. All breaking changes must land under a new major version (e.g., `/v2/`).
