@@ -1,5 +1,5 @@
 import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
-import { Category } from '../../categories/entities/category.entity';
+import { Category } from '../../category/entities/category.entity';
 
 @Entity('mesh_nodes')
 export class MeshNode {

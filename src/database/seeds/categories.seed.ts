@@ -1,5 +1,5 @@
 import { DataSource } from 'typeorm';
-import { Category } from '../../categories/entities/category.entity';
+import { Category } from '../../category/entities/category.entity';
 
 export const seedCategories = async (dataSource: DataSource): Promise<void> => {
   const categoryRepository = dataSource.getRepository(Category);

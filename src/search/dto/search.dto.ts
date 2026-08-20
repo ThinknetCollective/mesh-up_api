@@ -1,40 +1,46 @@
-import { IsOptional, IsString, IsInt, Min, IsDateString } from 'class-validator';
-import { Type } from 'class-transformer';
+import { IsOptional, IsString, IsDateString } from 'class-validator';
+import { ApiPropertyOptional } from '@nestjs/swagger';
+import { DeprecatedOffsetPaginationQueryDto } from '../../common/dto/cursor-pagination-query.dto';
 
-export class SearchQueryDto {
+/**
+ * Search filters plus the shared cursor pagination params.
+ *
+ * `cursor`, `limit` and the deprecated `page` are inherited rather than
+ * redeclared, so search stays in step with the other list endpoints.
+ */
+export class SearchQueryDto extends DeprecatedOffsetPaginationQueryDto {
+  @ApiPropertyOptional({
+    description:
+      'Full-text search term. When present, results are ranked by relevance ' +
+      'instead of recency.',
+    example: 'traffic congestion',
+  })
   @IsOptional()
   @IsString()
   q?: string;
 
+  @ApiPropertyOptional({ description: 'Filter by node type.' })
   @IsOptional()
   @IsString()
   type?: string;
 
+  @ApiPropertyOptional({ description: 'Filter by category.' })
   @IsOptional()
   @IsString()
   category?: string;
 
+  @ApiPropertyOptional({ description: 'Filter by tag.' })
   @IsOptional()
   @IsString()
   tags?: string;
 
+  @ApiPropertyOptional({ description: 'Only nodes created at or after this date.' })
   @IsOptional()
   @IsDateString()
   dateFrom?: string;
 
+  @ApiPropertyOptional({ description: 'Only nodes created at or before this date.' })
   @IsOptional()
   @IsDateString()
   dateTo?: string;
-
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  page?: number = 1;
-
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  limit?: number = 20;
 }

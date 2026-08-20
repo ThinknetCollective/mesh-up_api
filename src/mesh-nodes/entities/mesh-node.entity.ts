@@ -1,4 +1,5 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { Category } from '../../category/entities/category.entity';
 
 @Entity('mesh_nodes')
 export class MeshNode {
@@ -19,6 +20,13 @@ export class MeshNode {
 
   @Column({ type: 'decimal', nullable: true })
   embeddingVersion: string;
+
+  @Column({ type: 'uuid', nullable: true })
+  categoryId: string | null;
+
+  @ManyToOne(() => Category, (category) => category.meshNodes, { onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'categoryId' })
+  category: Category;
 
   @CreateDateColumn()
   createdAt: Date;
