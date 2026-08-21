@@ -19,6 +19,7 @@ import { Solution } from './entities/solution.entity';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
+import { Role } from '../users/entities/user.entity';
 import { BatchSolutionActionDto } from './dto/batch-solution-action.dto';
 
 @ApiTags('Solutions')
@@ -28,6 +29,8 @@ export class SolutionsController {
   constructor(private readonly solutionsService: SolutionsService) {}
 
   @Post('batch')
+  @UseGuards(RolesGuard)
+  @Roles(Role.MODERATOR)
   batchAction(
     @Body() body: BatchSolutionActionDto,
     @Request() req: any,
@@ -118,6 +121,8 @@ export class SolutionsController {
   }
 
   @Patch(':id/rank')
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN)
   updateRank(
     @Param('id') id: string,
     @Body('rank', ParseIntPipe) rank: number,
