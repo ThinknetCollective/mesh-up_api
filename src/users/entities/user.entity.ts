@@ -1,5 +1,11 @@
 import { Entity, Column, PrimaryGeneratedColumn } from 'typeorm';
 
+export enum Role {
+  USER = 'user',
+  MODERATOR = 'moderator',
+  ADMIN = 'admin',
+}
+
 export class UserEmailPreferences {
   @Column({ default: true })
   onComment: boolean;
@@ -21,6 +27,9 @@ export class User {
 
   @Column(() => UserEmailPreferences)
   emailPreferences: UserEmailPreferences;
+
+  @Column({ type: 'varchar', default: Role.USER })
+  role: Role;
 
   @Column({ default: 0 })
   reputation: number;

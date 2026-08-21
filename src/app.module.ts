@@ -16,6 +16,7 @@ import { Problem } from './solutions/entities/problem.entity';
 import { Vote } from './solutions/entities/vote.entity';
 import { Comment } from './comments/entities/comment.entity';
 import { User } from './users/entities/user.entity';
+import { RoleAuditLog } from './users/entities/role-audit-log.entity';
 import { Report } from './moderation/entities/report.entity';
 import { WebhookSubscription } from './webhooks/entities/webhook-subscription.entity';
 import { WebhookDelivery } from './webhooks/entities/webhook-delivery.entity';
@@ -33,7 +34,7 @@ import { DataSource } from 'typeorm';
       username: process.env.DATABASE_USER || 'postgres',
       password: process.env.DATABASE_PASSWORD || 'postgres',
       database: process.env.DATABASE_NAME || 'mesh_api',
-      entities: [User, Solution, SolutionRevision, Problem, Vote, Comment, Report, WebhookSubscription, WebhookDelivery],
+      entities: [User, RoleAuditLog, Solution, SolutionRevision, Problem, Vote, Comment, Report],
       synchronize: true, // For development; use migrations for production
     }),
     AuthModule,
