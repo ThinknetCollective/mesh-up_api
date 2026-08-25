@@ -21,9 +21,13 @@ import { Comment } from './comments/entities/comment.entity';
 import { Category } from './category/entities/category.entity';
 import { AuditLog } from './audit/entities/audit-log.entity';
 import { User } from './users/entities/user.entity';
+import { RoleAuditLog } from './users/entities/role-audit-log.entity';
 import { Report } from './moderation/entities/report.entity';
+import { WebhookSubscription } from './webhooks/entities/webhook-subscription.entity';
+import { WebhookDelivery } from './webhooks/entities/webhook-delivery.entity';
 import { UsersModule } from './users/users.module';
 import { SolutionsModule } from './solutions/solutions.module';
+import { WebhooksModule } from './webhooks/webhooks.module';
 import { DataSource } from 'typeorm';
 
 @Module({
@@ -36,7 +40,20 @@ import { DataSource } from 'typeorm';
       username: process.env.DATABASE_USER || 'postgres',
       password: process.env.DATABASE_PASSWORD || 'postgres',
       database: process.env.DATABASE_NAME || 'mesh_api',
-      entities: [User, Solution, SolutionRevision, Problem, Vote, Comment, Category, AuditLog, Report],
+      entities: [
+        User,
+        RoleAuditLog,
+        Solution,
+        SolutionRevision,
+        Problem,
+        Vote,
+        Comment,
+        Category,
+        AuditLog,
+        Report,
+        WebhookSubscription,
+        WebhookDelivery,
+      ],
       synchronize: true, // For development; use migrations for production
     }),
     AuthModule,
@@ -47,6 +64,7 @@ import { DataSource } from 'typeorm';
     CommentsModule,
     CategoriesModule,
     AuditModule,
+    WebhooksModule,
   ],
   controllers: [AppController],
   providers: [AppService],
