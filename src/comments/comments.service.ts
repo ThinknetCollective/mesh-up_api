@@ -8,6 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, TreeRepository } from 'typeorm';
 import { Comment } from './entities/comment.entity';
 import { Solution } from '../solutions/entities/solution.entity';
+import { AuditService } from '../audit/audit.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import {
   DEFAULT_PAGE_SIZE,
@@ -64,6 +65,7 @@ export class CommentsService {
     private readonly commentRepo: TreeRepository<Comment>,
     @InjectRepository(Solution)
     private readonly solutionRepo: Repository<Solution>,
+    private readonly auditService: AuditService,
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -147,6 +149,12 @@ export class CommentsService {
       .where('comment.solutionId = :solutionId', { solutionId })
       .andWhere('comment.depth = 0');
 
+    if (query.includeDeleted) {
+      qb.withDeleted();
+    } else {
+      qb.andWhere('comment.deletedAt IS NULL');
+    }
+
     if (query.cursor) {
       const { sql, params } = buildKeysetCondition(
         spec,
@@ -168,18 +176,31 @@ export class CommentsService {
       id: comment.id,
     }));
 
+    // Helper to recursively filter out soft-deleted children when includeDeleted is false
+    const filterDeletedChildren = (comment: Comment): Comment => {
+      if (comment.children && comment.children.length > 0) {
+        comment.children = comment.children
+          .filter((c) => !c.deletedAt)
+          .map(filterDeletedChildren);
+      }
+      return comment;
+    };
+
     // Load subtrees only for the rows actually being returned, never the
     // over-fetched sentinel.
-    const items = await Promise.all(
+    let items = await Promise.all(
       page.items.map((root) => this.commentRepo.findDescendantsTree(root)),
     );
+
+    if (!query.includeDeleted) {
+      items = items.map(filterDeletedChildren);
+    }
 
     return { ...page, items };
   }
 
   /**
-   * Delete a comment by its owner. Cascades to all descendant replies due to
-   * the CASCADE delete on the closure-table and tree-parent relations.
+   * Soft-delete a comment by its owner (or moderator). Cascades to all descendant replies.
    */
   async delete(commentId: string, requesterId: string): Promise<void> {
     const comment = await this.commentRepo.findOne({ where: { id: commentId } });
@@ -189,7 +210,23 @@ export class CommentsService {
     if (comment.authorId !== requesterId) {
       throw new ForbiddenException('You can only delete your own comments');
     }
-    await this.commentRepo.remove(comment);
+
+    const now = new Date();
+    comment.deletedAt = now;
+    comment.deletedBy = requesterId;
+    await this.commentRepo.save(comment);
+
+    // Also soft-delete all descendants
+    const descendants = await this.commentRepo.findDescendants(comment);
+    for (const descendant of descendants) {
+      if (!descendant.deletedAt) {
+        descendant.deletedAt = now;
+        descendant.deletedBy = requesterId;
+        await this.commentRepo.save(descendant);
+      }
+    }
+
+    await this.auditService.log('DELETE_COMMENT', 'comment', comment.id, requesterId);
   }
 
   // ---------------------------------------------------------------------------

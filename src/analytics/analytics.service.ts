@@ -21,6 +21,7 @@ export class AnalyticsService {
     const avgScoreResult = await this.solutionRepository
       .createQueryBuilder('solution')
       .select('AVG(solution.score)', 'avg')
+      .where('solution.deletedAt IS NULL')
       .getRawOne();
       
     const avgQualityScore = avgScoreResult && avgScoreResult.avg ? parseFloat(avgScoreResult.avg) : 0;
@@ -35,6 +36,7 @@ export class AnalyticsService {
     const activeSolutionAuthors = await this.solutionRepository
       .createQueryBuilder('solution')
       .select('solution.authorId')
+      .where('solution.deletedAt IS NULL')
       .distinct(true)
       .getRawMany();
 
@@ -69,6 +71,7 @@ export class AnalyticsService {
       .select('DATE(solution.createdAt)', 'date')
       .addSelect('COUNT(*)', 'count')
       .where('solution.createdAt >= CURRENT_DATE - (:days || \' days\')::interval', { days })
+      .andWhere('solution.deletedAt IS NULL')
       .groupBy('DATE(solution.createdAt)')
       .orderBy('DATE(solution.createdAt)', 'ASC')
       .getRawMany();
@@ -102,6 +105,7 @@ export class AnalyticsService {
       .addSelect('COUNT(solution.id)', 'solutions')
       .addSelect('COALESCE(SUM(solution.score), 0)', 'reputation')
       .where('solution.authorId IS NOT NULL')
+      .andWhere('solution.deletedAt IS NULL')
       .groupBy('solution.authorId')
       .orderBy('reputation', 'DESC')
       .addOrderBy('solutions', 'DESC')

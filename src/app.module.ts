@@ -10,11 +10,16 @@ import { SearchModule } from './search/search.module';
 import { UnversionedRedirectMiddleware } from './common/middleware/unversioned-redirect.middleware';
 import { ModerationModule } from './moderation/moderation.module';
 import { CommentsModule } from './comments/comments.module';
+import { CategoriesModule } from './category/categories.module';
+import { AuditModule } from './audit/audit.module';
+import { ScheduleModule } from '@nestjs/schedule';
 import { Solution } from './solutions/entities/solution.entity';
 import { SolutionRevision } from './solutions/entities/solution-revision.entity';
 import { Problem } from './solutions/entities/problem.entity';
 import { Vote } from './solutions/entities/vote.entity';
 import { Comment } from './comments/entities/comment.entity';
+import { Category } from './category/entities/category.entity';
+import { AuditLog } from './audit/entities/audit-log.entity';
 import { User } from './users/entities/user.entity';
 import { Report } from './moderation/entities/report.entity';
 import { UsersModule } from './users/users.module';
@@ -23,6 +28,7 @@ import { DataSource } from 'typeorm';
 
 @Module({
   imports: [
+    ScheduleModule.forRoot(),
     TypeOrmModule.forRoot({
       type: 'postgres',
       host: process.env.DATABASE_HOST || 'localhost',
@@ -30,7 +36,7 @@ import { DataSource } from 'typeorm';
       username: process.env.DATABASE_USER || 'postgres',
       password: process.env.DATABASE_PASSWORD || 'postgres',
       database: process.env.DATABASE_NAME || 'mesh_api',
-      entities: [User, Solution, SolutionRevision, Problem, Vote, Comment, Report],
+      entities: [User, Solution, SolutionRevision, Problem, Vote, Comment, Category, AuditLog, Report],
       synchronize: true, // For development; use migrations for production
     }),
     AuthModule,
@@ -39,6 +45,8 @@ import { DataSource } from 'typeorm';
     UsersModule,
     SolutionsModule,
     CommentsModule,
+    CategoriesModule,
+    AuditModule,
   ],
   controllers: [AppController],
   providers: [AppService],

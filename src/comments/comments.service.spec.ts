@@ -1,9 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { CommentsService } from './comments.service';
 import { Comment } from './entities/comment.entity';
 import { Solution } from '../solutions/entities/solution.entity';
+import { AuditService } from '../audit/audit.service';
 import { decodeCursor, encodeCursor, cursorScope } from '../common/utils/cursor.util';
 
 const SOLUTION_ID = 'sol-1';
@@ -34,16 +35,18 @@ const makeComment = (i: number): Comment =>
     children: [],
   }) as Comment;
 
-describe('CommentsService.findAll (cursor pagination)', () => {
+describe('CommentsService', () => {
   let service: CommentsService;
   let qb: Record<string, jest.Mock>;
   let commentRepo: Record<string, jest.Mock>;
   let solutionRepo: Record<string, jest.Mock>;
+  let mockAuditService: Record<string, jest.Mock>;
 
   beforeEach(async () => {
     qb = {
       where: jest.fn().mockReturnThis(),
       andWhere: jest.fn().mockReturnThis(),
+      withDeleted: jest.fn().mockReturnThis(),
       orderBy: jest.fn().mockReturnThis(),
       addOrderBy: jest.fn().mockReturnThis(),
       take: jest.fn().mockReturnThis(),
@@ -52,12 +55,18 @@ describe('CommentsService.findAll (cursor pagination)', () => {
 
     commentRepo = {
       createQueryBuilder: jest.fn(() => qb),
-      // Echo the root back, as a tree with no replies.
+      findOne: jest.fn(),
+      save: jest.fn((c) => Promise.resolve(c)),
       findDescendantsTree: jest.fn((root: Comment) => Promise.resolve(root)),
+      findDescendants: jest.fn(() => Promise.resolve([])),
     };
 
     solutionRepo = {
       findOne: jest.fn().mockResolvedValue({ id: SOLUTION_ID } as Solution),
+    };
+
+    mockAuditService = {
+      log: jest.fn().mockResolvedValue({}),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -65,6 +74,7 @@ describe('CommentsService.findAll (cursor pagination)', () => {
         CommentsService,
         { provide: getRepositoryToken(Comment), useValue: commentRepo },
         { provide: getRepositoryToken(Solution), useValue: solutionRepo },
+        { provide: AuditService, useValue: mockAuditService },
       ],
     }).compile();
 
@@ -184,5 +194,86 @@ describe('CommentsService.findAll (cursor pagination)', () => {
       expect.stringContaining('OFFSET'),
       expect.anything(),
     );
+  });
+
+  it('excludes soft-deleted comments by default', async () => {
+    await service.findAll(SOLUTION_ID, {});
+
+    expect(qb.andWhere).toHaveBeenCalledWith('comment.deletedAt IS NULL');
+    expect(qb.withDeleted).not.toHaveBeenCalled();
+  });
+
+  it('includes soft-deleted comments when includeDeleted is true', async () => {
+    await service.findAll(SOLUTION_ID, { includeDeleted: true });
+
+    expect(qb.withDeleted).toHaveBeenCalled();
+  });
+
+  it('filters out soft-deleted replies in tree when includeDeleted is false', async () => {
+    const root = makeComment(0);
+    const activeReply = { ...makeComment(1), depth: 1, deletedAt: null };
+    const deletedReply = { ...makeComment(2), depth: 1, deletedAt: new Date() };
+    root.children = [activeReply, deletedReply];
+
+    qb.getMany.mockResolvedValue([root]);
+    commentRepo.findDescendantsTree.mockResolvedValue(root);
+
+    const result = await service.findAll(SOLUTION_ID, { includeDeleted: false });
+
+    expect(result.items[0].children).toHaveLength(1);
+    expect(result.items[0].children[0].id).toBe('c-1');
+  });
+
+  describe('delete', () => {
+    it('soft-deletes comment and its descendants, saving deletedAt and deletedBy, and logs audit', async () => {
+      const comment = makeComment(1);
+      comment.authorId = 'user-1';
+      const descendant = { ...makeComment(2), authorId: 'user-2', deletedAt: null };
+
+      commentRepo.findOne.mockResolvedValue(comment);
+      commentRepo.findDescendants.mockResolvedValue([descendant]);
+
+      await service.delete('c-1', 'user-1');
+
+      expect(commentRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'c-1',
+          deletedAt: expect.any(Date),
+          deletedBy: 'user-1',
+        }),
+      );
+      expect(commentRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'c-2',
+          deletedAt: expect.any(Date),
+          deletedBy: 'user-1',
+        }),
+      );
+      expect(mockAuditService.log).toHaveBeenCalledWith(
+        'DELETE_COMMENT',
+        'comment',
+        'c-1',
+        'user-1',
+      );
+    });
+
+    it('throws ForbiddenException when requester is not author', async () => {
+      const comment = makeComment(1);
+      comment.authorId = 'user-1';
+      commentRepo.findOne.mockResolvedValue(comment);
+
+      await expect(service.delete('c-1', 'other-user')).rejects.toThrow(
+        ForbiddenException,
+      );
+      expect(commentRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('throws NotFoundException when comment does not exist', async () => {
+      commentRepo.findOne.mockResolvedValue(null);
+
+      await expect(service.delete('missing-id', 'user-1')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
   });
 });

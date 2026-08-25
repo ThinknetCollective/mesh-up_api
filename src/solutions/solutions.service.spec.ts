@@ -5,6 +5,7 @@ import { SolutionsService } from './solutions.service';
 import { Solution } from './entities/solution.entity';
 import { SolutionRevision } from './entities/solution-revision.entity';
 import { ReputationService } from '../users/reputation.service';
+import { AuditService } from '../audit/audit.service';
 import { cursorScope, decodeCursor, encodeCursor } from '../common/utils/cursor.util';
 
 /** Mirrors the spec built inside SolutionsService, for minting test cursors. */
@@ -47,6 +48,7 @@ describe('SolutionsService.findAll (cursor pagination)', () => {
     qb = {
       where: jest.fn().mockReturnThis(),
       andWhere: jest.fn().mockReturnThis(),
+      withDeleted: jest.fn().mockReturnThis(),
       orderBy: jest.fn().mockReturnThis(),
       addOrderBy: jest.fn().mockReturnThis(),
       take: jest.fn().mockReturnThis(),
@@ -62,6 +64,7 @@ describe('SolutionsService.findAll (cursor pagination)', () => {
         },
         { provide: getRepositoryToken(SolutionRevision), useValue: {} },
         { provide: ReputationService, useValue: { addPoints: jest.fn() } },
+        { provide: AuditService, useValue: { log: jest.fn() } },
       ],
     }).compile();
 
@@ -176,5 +179,18 @@ describe('SolutionsService.findAll (cursor pagination)', () => {
     await expect(service.findAll({ cursor: 'garbage!!' })).rejects.toThrow(
       BadRequestException,
     );
+  });
+
+  it('excludes soft-deleted solutions by default', async () => {
+    await service.findAll({});
+
+    expect(qb.andWhere).toHaveBeenCalledWith('solution.deletedAt IS NULL');
+    expect(qb.withDeleted).not.toHaveBeenCalled();
+  });
+
+  it('includes soft-deleted solutions when includeDeleted is true', async () => {
+    await service.findAll({ includeDeleted: true });
+
+    expect(qb.withDeleted).toHaveBeenCalled();
   });
 });

@@ -3,6 +3,7 @@ import { SolutionsService } from './solutions.service';
 import { Solution } from './entities/solution.entity';
 import { SolutionRevision } from './entities/solution-revision.entity';
 import { ReputationService } from '../users/reputation.service';
+import { AuditService } from '../audit/audit.service';
 import { createInMemoryDataSource } from '../common/testing/in-memory-db';
 
 /**
@@ -30,6 +31,7 @@ describe('GET /v1/solutions — cursor stability under concurrent writes', () =>
       dataSource.getRepository(Solution),
       dataSource.getRepository(SolutionRevision),
       { addPoints: jest.fn() } as unknown as ReputationService,
+      { log: jest.fn() } as unknown as AuditService,
     );
 
     seq = 0;

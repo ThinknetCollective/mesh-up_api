@@ -46,6 +46,14 @@ export class CursorPaginationQueryDto {
   @Min(1)
   @Max(MAX_PAGE_SIZE)
   limit?: number = DEFAULT_PAGE_SIZE;
+
+  @ApiPropertyOptional({
+    description: 'Whether to include soft-deleted records (e.g. for moderation/audit review)',
+    default: false,
+  })
+  @IsOptional()
+  @Type(() => Boolean)
+  includeDeleted?: boolean = false;
 }
 
 /**

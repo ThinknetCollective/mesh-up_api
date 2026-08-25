@@ -1,5 +1,12 @@
-import { Entity, PrimaryGeneratedColumn, Column, OneToMany, CreateDateColumn } from 'typeorm';
-import { MeshNode } from '../../mesh-nodes/entities/mesh-node.entity'; // Adjust import path to match your project layout
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  OneToMany,
+  CreateDateColumn,
+  DeleteDateColumn,
+} from 'typeorm';
+import { MeshNode } from '../../mesh-nodes/entities/mesh-node.entity';
 
 @Entity('categories')
 export class Category {
@@ -17,6 +24,12 @@ export class Category {
 
   @CreateDateColumn()
   createdAt: Date;
+
+  @DeleteDateColumn({ nullable: true })
+  deletedAt: Date | null;
+
+  @Column({ nullable: true })
+  deletedBy: string | null;
 
   @OneToMany(() => MeshNode, (meshNode) => meshNode.category)
   meshNodes: MeshNode[];
