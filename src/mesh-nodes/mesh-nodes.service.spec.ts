@@ -4,6 +4,7 @@ import { BadRequestException } from '@nestjs/common';
 import { MeshNodesService } from './mesh-nodes.service';
 import { MeshNode } from './entities/mesh-node.entity';
 import { EmbeddingsService } from '../embeddings/embeddings.service';
+import { ReputationService } from '../users/reputation.service';
 
 describe('MeshNodesService', () => {
   let service: MeshNodesService;
@@ -40,6 +41,10 @@ describe('MeshNodesService', () => {
         {
           provide: EmbeddingsService,
           useValue: embeddingsService,
+        },
+        {
+          provide: ReputationService,
+          useValue: { addPoints: jest.fn() },
         },
       ],
     }).compile();

@@ -2,6 +2,7 @@ import { DataSource } from 'typeorm';
 import { CommentsService } from './comments.service';
 import { Comment } from './entities/comment.entity';
 import { Solution } from '../solutions/entities/solution.entity';
+import { AuditService } from '../audit/audit.service';
 import { createInMemoryDataSource } from '../common/testing/in-memory-db';
 
 /**
@@ -62,6 +63,7 @@ describe('GET solutions/:id/comments — cursor stability under concurrent inser
     service = new CommentsService(
       dataSource.getTreeRepository(Comment),
       dataSource.getRepository(Solution),
+      { log: jest.fn() } as unknown as AuditService,
     );
 
     seq = 0;

@@ -9,6 +9,7 @@ import { Repository } from 'typeorm';
 import { Solution } from './entities/solution.entity';
 import { SolutionRevision } from './entities/solution-revision.entity';
 import { ReputationService, ReputationAction } from '../users/reputation.service';
+import { AuditService } from '../audit/audit.service';
 import {
   CursorPaginationQueryDto,
   DEFAULT_PAGE_SIZE,
@@ -70,6 +71,7 @@ export class SolutionsService {
     @InjectRepository(SolutionRevision)
     private readonly revisionRepo: Repository<SolutionRevision>,
     private readonly reputationService: ReputationService,
+    private readonly auditService: AuditService,
   ) {}
 
   async create(dto: { meshNodeId: number; content: string; authorId: string }) {
@@ -99,6 +101,12 @@ export class SolutionsService {
     const qb = this.solutionRepo
       .createQueryBuilder('solution')
       .where('solution.status = :status', { status: VISIBLE_STATUS });
+
+    if (query.includeDeleted) {
+      qb.withDeleted();
+    } else {
+      qb.andWhere('solution.deletedAt IS NULL');
+    }
 
     if (query.cursor) {
       const { sql, params } = buildKeysetCondition(
@@ -145,13 +153,18 @@ export class SolutionsService {
           continue;
         }
 
+        const userId = user?.id ?? user?.sub ?? null;
+
         switch (dto.action) {
           case 'delete':
-            await this.solutionRepo.delete(solution.id);
+            solution.deletedAt = new Date();
+            solution.deletedBy = userId;
+            await this.solutionRepo.save(solution);
+            await this.auditService.log('DELETE_SOLUTION', 'solution', solution.id, userId);
             break;
           case 'bookmark':
             solution.isBookmarked = true;
-            solution.bookmarkedBy = user?.id;
+            solution.bookmarkedBy = userId;
             await this.solutionRepo.save(solution);
             break;
           case 'update-status':

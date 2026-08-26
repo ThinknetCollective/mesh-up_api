@@ -5,6 +5,7 @@ import { SolutionsService } from './solutions.service';
 import { Solution } from './entities/solution.entity';
 import { SolutionRevision } from './entities/solution-revision.entity';
 import { ReputationService } from '../users/reputation.service';
+import { AuditService } from '../audit/audit.service';
 
 describe('SolutionsService.batchAction', () => {
   let service: SolutionsService;
@@ -13,12 +14,18 @@ describe('SolutionsService.batchAction', () => {
     save: jest.Mock;
     delete: jest.Mock;
   };
+  let mockAuditService: {
+    log: jest.Mock;
+  };
 
   beforeEach(async () => {
     solutionRepo = {
       findOneBy: jest.fn(),
       save: jest.fn(),
       delete: jest.fn(),
+    };
+    mockAuditService = {
+      log: jest.fn().mockResolvedValue({}),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -30,13 +37,14 @@ describe('SolutionsService.batchAction', () => {
         },
         { provide: getRepositoryToken(SolutionRevision), useValue: {} },
         { provide: ReputationService, useValue: { addPoints: jest.fn() } },
+        { provide: AuditService, useValue: mockAuditService },
       ],
     }).compile();
 
     service = module.get(SolutionsService);
   });
 
-  it('returns per-item results for delete operations and skips missing solutions', async () => {
+  it('returns per-item results for delete operations, soft-deletes and logs audit', async () => {
     solutionRepo.findOneBy.mockImplementation(({ id }) => {
       if (id === 'existing') {
         return Promise.resolve({ id, status: 'active' });
@@ -46,7 +54,7 @@ describe('SolutionsService.batchAction', () => {
 
     const result = await service.batchAction(
       { action: 'delete', solutionIds: ['existing', 'missing'] },
-      { role: 'moderator' },
+      { id: 'mod-1', role: 'moderator' },
     );
 
     expect(result).toEqual({
@@ -55,7 +63,19 @@ describe('SolutionsService.batchAction', () => {
         { id: 'missing', success: false, error: 'Not found' },
       ],
     });
-    expect(solutionRepo.delete).toHaveBeenCalledWith('existing');
+    expect(solutionRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'existing',
+        deletedAt: expect.any(Date),
+        deletedBy: 'mod-1',
+      }),
+    );
+    expect(mockAuditService.log).toHaveBeenCalledWith(
+      'DELETE_SOLUTION',
+      'solution',
+      'existing',
+      'mod-1',
+    );
   });
 
   it('bookmarks solutions for authenticated users', async () => {
